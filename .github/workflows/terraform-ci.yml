@@ -1,0 +1,38 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - "**/*.tf"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.tf"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: environments/dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+
+      - name: terraform fmt check
+        run: terraform fmt -check -recursive ..
+
+      - name: terraform init
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+      # terraform plan requires AWS credentials — wire up an OIDC role
+      # before enabling this step. Deliberately left commented out until
+      # an AWS account and CI role exist.
+      # - name: terraform plan
+      #   run: terraform plan
