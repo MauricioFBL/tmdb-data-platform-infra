@@ -5,34 +5,115 @@ on:
     paths:
       - "**/*.tf"
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - "**/*.tf"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: environments/dev
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setting AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Installing terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.7.5"
 
-      - name: terraform fmt check
+      - name: Terraform Format
         run: terraform fmt -check -recursive ..
 
-      - name: terraform init
-        run: terraform init -backend=false
+      - name: Terraform Init
+        run: terraform init
 
-      - name: terraform validate
+      - name: Terraform Validate
         run: terraform validate
 
-      # terraform plan requires AWS credentials — wire up an OIDC role
-      # before enabling this step. Deliberately left commented out until
-      # an AWS account and CI role exist.
-      # - name: terraform plan
-      #   run: terraform plan
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Export plan to JSON
+        run: terraform show -json tfplan > tfplan.json
+
+      - name: Export plan to text
+        run: terraform show -no-color tfplan > plan.txt
+
+      - name: Check for destructive changes
+        run: |
+          destroy_count=$(jq '
+            [
+              .resource_changes[]
+              | select(
+                  (.change.actions | index("delete")) != null
+                )
+            ] | length
+          ' tfplan.json)
+          echo "Resources to destroy: $destroy_count"
+
+          if [ "$destroy_count" -gt 0 ]; then
+            echo "::warning::Terraform will destroy $destroy_count resource(s)"
+            echo "Resources affected:"
+            jq -r '
+              .resource_changes[]
+              | select(
+                  (.change.actions | index("delete")) != null
+                )
+              | "- " + .address
+            ' tfplan.json
+          fi
+
+      - name: Upload plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('plan.txt', 'utf8');
+            const marker = '<!-- terraform-plan -->';
+            const body = `${marker}
+            ## 🌍 Terraform Plan
+            ✅ Terraform plan generated successfully.
+            <details>
+            <summary>📄 Show full Terraform Plan</summary>
+            \`\`\`terraform
+            ${plan}
+            \`\`\`
+            </details>
+            `;
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const previousComment = comments.data.find(comment =>
+              comment.body.includes(marker)
+            );
+            if (previousComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previousComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

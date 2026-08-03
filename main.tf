@@ -1,20 +1,23 @@
-terraform {
-  required_version = ">= 1.7"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-
-  # Remote state backend intentionally left unconfigured here.
-  # Decide and document in an ADR before the first `terraform apply`:
-  # S3 backend + DynamoDB lock table is the usual choice, but for a
-  # two-person portfolio project a local backend during Phase 0 may be
-  # acceptable — this is an open decision, not yet made.
+# s3 datalake
+module "datalake" {
+  source = "./modules/s3"
+  environment = var.environment
 }
 
-provider "aws" {
-  region = var.aws_region
+# Glue Catalog
+module "glue_catalog_bronze" {
+  source = "./modules/glue-catalog"
+  layer = "bronze"
+  environment = var.environment
+}
+
+module "glue_catalog_silver" {
+  source = "./modules/glue-catalog"
+  layer = "silver"
+  environment = var.environment
+}
+
+# IAM Roles para Glue y dbt
+module "glue_role" {
+    source = "./modules/iam"
 }
