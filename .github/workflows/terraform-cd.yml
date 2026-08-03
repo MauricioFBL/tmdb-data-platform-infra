@@ -3,8 +3,6 @@ name: Terraform CD
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.tf"
   workflow_dispatch:
 
 jobs:

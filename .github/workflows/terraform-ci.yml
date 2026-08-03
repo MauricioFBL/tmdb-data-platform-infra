@@ -2,12 +2,8 @@ name: Terraform CI
 
 on:
   pull_request:
-    paths:
-      - "**/*.tf"
   push:
     branches: [develop]
-    paths:
-      - "**/*.tf"
   workflow_dispatch:
 
 permissions:
