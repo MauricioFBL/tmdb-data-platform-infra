@@ -19,7 +19,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     env:
-      TF_VAR_environment:: ${{ secrets.ENVIRONMENT }}
+      TF_VAR_environment: ${{ secrets.ENVIRONMENT }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
