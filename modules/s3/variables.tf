@@ -15,8 +15,7 @@ variable "folders" {
   default = [
     "bronze",
     "silver",
-    "manifest",
-    "checkpoints",
-    "errors"
+    "artifacts/jobs",
+    "artifacts/airflow/dags"
   ]
 }

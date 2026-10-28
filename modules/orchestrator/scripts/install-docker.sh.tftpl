@@ -1,0 +1,130 @@
+#!/bin/bash
+set -euo pipefail
+
+# 1. Instalar Docker y Docker Compose.
+dnf install -y docker
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+install -d -m 0755 /usr/local/lib/docker/cli-plugins
+
+curl --fail --location --retry 5 \
+  https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-x86_64 \
+  --output /usr/local/lib/docker/cli-plugins/docker-compose
+
+chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
+
+# 2. Preparar el directorio de Airflow.
+install -d -o ec2-user -g ec2-user -m 0755 /home/ec2-user/airflow
+cd /home/ec2-user/airflow
+
+# Crear archivos privados por defecto.
+umask 077
+
+# 3. Escribir el Dockerfile y el Compose enviados por Terraform.
+printf '%s' '${dockerfile_b64}' | base64 -d > Dockerfile
+printf '%s' '${compose_b64}' | base64 -d > compose.yaml
+
+cat > .dockerignore <<'EOF'
+.env
+.git
+dags/
+logs/
+auth/
+EOF
+
+# 4. Escribir la configuración preparada por Terraform.
+cat > .env <<'EOF'
+POSTGRES_PASSWORD=${postgres_password}
+AIRFLOW__CORE__FERNET_KEY=${fernet_key}
+AIRFLOW__API_AUTH__JWT_SECRET=${jwt_secret}
+AIRFLOW__API__SECRET_KEY=${api_secret}
+AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${database_url}
+AWS_DEFAULT_REGION=${region}
+EOF
+
+# 5. Consultar la IP privada de esta instancia mediante IMDSv2.
+TOKEN=$(curl -fsS --retry 5 --max-time 15 -X PUT \
+  -H 'X-aws-ec2-metadata-token-ttl-seconds: 600' \
+  http://169.254.169.254/latest/api/token)
+
+LOCAL_IP=$(curl -fsS --retry 5 --max-time 15 \
+  -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/local-ipv4)
+
+printf '\nLOCAL_IP=%s\n' "$LOCAL_IP" >> .env
+
+# 6. Preparar los directorios y construir la imagen.
+install -d -m 0755 dags logs auth
+
+# El usuario de Airflow dentro del contenedor utiliza el ID 50000.
+chown 50000:0 dags logs auth
+
+chown ec2-user:ec2-user .env
+chmod 600 .env
+chmod 644 Dockerfile .dockerignore compose.yaml
+
+%{ if role == "api" ~}
+# Preparar la contraseña fija de admin antes de iniciar el API Server.
+printf '%s' '${admin_passwords_b64}' | base64 -d > auth/passwords.json
+chown 50000:0 auth/passwords.json
+chmod 600 auth/passwords.json
+%{ endif ~}
+
+docker compose build
+
+%{ if role == "backend" ~}
+# 7A. INSTANCIA A: obtener la dirección del API desde Parameter Store.
+command -v aws >/dev/null
+FOUND=false
+
+for attempt in $(seq 1 120); do
+  if ENDPOINT=$(aws ssm get-parameter \
+    --region '${region}' \
+    --name '${parameter_name}' \
+    --query Parameter.Value \
+    --output text \
+    --cli-connect-timeout 5 \
+    --cli-read-timeout 10); then
+
+    FOUND=true
+    break
+  fi
+
+  sleep 5
+done
+
+if [ "$FOUND" != true ]; then
+  echo "No se pudo leer la direccion del API en Parameter Store." >&2
+  exit 1
+fi
+
+printf '\nAIRFLOW__CORE__EXECUTION_API_SERVER_URL=%s\n' \
+  "$ENDPOINT" >> .env
+
+%{ else ~}
+# 7B. INSTANCIA B: esperar a que A prepare la base de Airflow.
+READY=false
+
+for attempt in $(seq 1 90); do
+  if docker compose run --rm --no-deps api \
+    db check-migrations --migration-wait-timeout 10; then
+
+    READY=true
+    break
+  fi
+
+  sleep 5
+done
+
+if [ "$READY" != true ]; then
+  echo "La base de Airflow no termino de prepararse." >&2
+  exit 1
+fi
+%{ endif ~}
+
+# 8. Iniciar los servicios correspondientes a esta EC2.
+docker compose up -d --no-build
+
+# Mostrar su estado en el registro de arranque.
+docker compose ps -a

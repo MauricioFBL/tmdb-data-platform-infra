@@ -1,0 +1,29 @@
+name: airflow
+
+services:
+  api:
+    build: .
+    image: tmdb-airflow:3.3.2
+    user: "50000:0"
+    env_file: .env
+    restart: unless-stopped
+
+    command:
+      - api-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - --workers
+      - "1"
+
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: "admin:admin"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/auth/passwords.json
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - ./auth:/opt/airflow/auth

@@ -1,0 +1,80 @@
+name: airflow
+
+x-airflow: &airflow
+  build: .
+  image: tmdb-airflow:3.3.2
+  user: "50000:0"
+  env_file: .env
+  restart: unless-stopped
+
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__CORE__PARALLELISM: "2"
+    AIRFLOW__DAG_PROCESSOR__PARSING_PROCESSES: "1"
+
+  volumes:
+    - ./dags:/opt/airflow/dags:ro
+    - ./logs:/opt/airflow/logs
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_DB: airflow
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+
+    ports:
+      - "${LOCAL_IP}:5432:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  airflow-init:
+    <<: *airflow
+    command: ["db", "migrate"]
+    restart: "no"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scheduler:
+    <<: *airflow
+    command: scheduler
+
+    # Airflow anunciará esta IP para recuperar los logs de las tareas.
+    hostname: "${LOCAL_IP}"
+
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__PARALLELISM: "2"
+      AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
+
+    ports:
+      - "${LOCAL_IP}:8793:8793"
+
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  dag-processor:
+    <<: *airflow
+    command: dag-processor
+
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:

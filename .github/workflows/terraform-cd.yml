@@ -9,7 +9,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      TF_VAR_environment:: ${{ secrets.ENVIRONMENT }}
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+      TF_VAR_public_key: ${{ secrets.PUBLIC_KEY }}
+      TF_VAR_environment: ${{ secrets.ENVIRONMENT }}
+      TF_VAR_postgres_password: ${{ secrets.AIRFLOW_POSTGRES_PASSWORD }}
+      TF_VAR_jwt_secret: ${{ secrets.AIRFLOW_JWT_SECRET }}
+      TF_VAR_fernet_key: ${{ secrets.AIRFLOW_FERNET_KEY }}
+      TF_VAR_api_secret: ${{ secrets.AIRFLOW_API_SECRET }}
+      TF_VAR_airflow_admin_password: ${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
 
     steps:
       - name: Checkout code
