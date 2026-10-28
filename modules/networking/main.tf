@@ -10,10 +10,13 @@ resource "aws_subnet" "airflow-subnet" {
 resource "aws_security_group" "airflow-scheduler-db-dp-sg" {
   vpc_id = aws_vpc.airflow-vpc.id
   ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port = 5432
+    to_port   = 5432
+    protocol  = "tcp"
+    security_groups = [
+      aws_security_group.airflow-api-server-sg.id
+    ]
+
   }
   ingress {
     from_port   = 8793
