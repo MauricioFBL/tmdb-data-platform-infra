@@ -14,6 +14,15 @@ curl --fail --location --retry 5 \
 
 chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
 
+# 1.1. Instalar Buildx para construir las imágenes con Docker Compose.
+curl --fail --location --retry 5 \
+  https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64 \
+  --output /usr/local/lib/docker/cli-plugins/docker-buildx
+
+chmod 0755 /usr/local/lib/docker/cli-plugins/docker-buildx
+
+docker buildx version
+
 # 2. Preparar el directorio de Airflow.
 install -d -o ec2-user -g ec2-user -m 0755 /home/ec2-user/airflow
 cd /home/ec2-user/airflow
