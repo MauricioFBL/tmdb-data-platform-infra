@@ -3,8 +3,9 @@ resource "aws_vpc" "airflow-vpc" {
 }
 
 resource "aws_subnet" "airflow-subnet" {
-  vpc_id     = aws_vpc.airflow-vpc.id
-  cidr_block = "10.0.0.0/24"
+  vpc_id            = aws_vpc.airflow-vpc.id
+  cidr_block        = "10.0.0.0/24"
+  availability_zone = "us-east-1a"
 }
 
 resource "aws_security_group" "airflow-scheduler-db-dp-sg" {
