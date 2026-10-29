@@ -68,6 +68,10 @@ resource "aws_iam_instance_profile" "airflow_backend" {
 }
 
 resource "aws_instance" "airflow-scheduler-db-dp" {
+  tags = {
+    Name = "tmdb-airflow-scheduler-db-dp"
+  }
+
   ami                         = "ami-0d27e0fb3bac4d724"
   instance_type               = var.instance_size
   key_name                    = aws_key_pair.airflow-key-pair.key_name
@@ -100,6 +104,10 @@ resource "aws_instance" "airflow-scheduler-db-dp" {
 }
 
 resource "aws_instance" "airflow-api-server" {
+  tags = {
+    Name = "tmdb-airflow-api-server"
+  }
+
   ami                         = "ami-0d27e0fb3bac4d724"
   instance_type               = var.instance_size
   key_name                    = aws_key_pair.airflow-key-pair.key_name
