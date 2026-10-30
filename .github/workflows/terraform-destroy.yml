@@ -1,0 +1,52 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+
+# Los workflows que usan el mismo estado comparten este grupo.
+concurrency:
+  group: terraform-tmdb-state
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+      TF_VAR_public_key: ${{ secrets.PUBLIC_KEY }}
+      TF_VAR_environment: ${{ secrets.ENVIRONMENT }}
+      TF_VAR_postgres_password: ${{ secrets.AIRFLOW_POSTGRES_PASSWORD }}
+      TF_VAR_jwt_secret: ${{ secrets.AIRFLOW_JWT_SECRET }}
+      TF_VAR_fernet_key: ${{ secrets.AIRFLOW_FERNET_KEY }}
+      TF_VAR_api_secret: ${{ secrets.AIRFLOW_API_SECRET }}
+      TF_VAR_airflow_admin_password: ${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+      TF_VAR_dags_bucket_name: ${{ secrets.BUCKET_NAME }}-${{ secrets.ENVIRONMENT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setting AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Installing terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.0"
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -input=false -lock-timeout=5m

@@ -5,6 +5,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: terraform-tmdb-state
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
