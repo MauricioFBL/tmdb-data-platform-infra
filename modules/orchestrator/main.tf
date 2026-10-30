@@ -15,8 +15,10 @@ locals {
       admin = var.airflow_admin_password
     }))
 
-    region         = var.aws_region
-    parameter_name = local.parameter_name
+    region           = var.aws_region
+    parameter_name   = local.parameter_name
+    dags_bucket_name = var.dags_bucket_name
+    dags_prefix      = var.dags_prefix
 
     dockerfile_b64 = filebase64(
       "${path.module}/docker/Dockerfile"
@@ -100,7 +102,9 @@ resource "aws_instance" "airflow-scheduler-db-dp" {
   ))
   user_data_replace_on_change = true
 
-  depends_on = [aws_iam_role_policy.read_api_endpoint]
+  depends_on = [aws_iam_role_policy.read_api_endpoint,
+    aws_iam_role_policy.read_dags
+  ]
 }
 
 resource "aws_instance" "airflow-api-server" {
@@ -135,4 +139,32 @@ resource "aws_ssm_parameter" "execution_api" {
   type  = "String"
   tier  = "Standard"
   value = "http://${aws_instance.airflow-api-server.private_ip}:8080/execution/"
+}
+
+resource "aws_iam_role_policy" "read_dags" {
+  name = "read-airflow-dags"
+  role = aws_iam_role.airflow_backend.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["s3:ListBucket"]
+        Resource = join("", [
+          "arn:${data.aws_partition.current.partition}:s3:::",
+          var.dags_bucket_name
+        ])
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:GetObject"]
+        Resource = join("", [
+          "arn:${data.aws_partition.current.partition}:s3:::",
+          "${var.dags_bucket_name}/${var.dags_prefix}*"
+        ])
+      }
+    ]
+  })
 }

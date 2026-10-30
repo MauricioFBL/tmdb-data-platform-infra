@@ -45,3 +45,14 @@ variable "airflow_admin_password" {
   type      = string
   sensitive = true
 }
+
+variable "dags_bucket_name" {
+  description = "Bucket where DAGs are published."
+  type        = string
+}
+
+variable "dags_prefix" {
+  description = "The prefix for DAGs used inside the DAGs bucket."
+  type        = string
+  default     = "artifacts/airflow/dags/"
+}

@@ -23,6 +23,7 @@ jobs:
       TF_VAR_fernet_key: ${{ secrets.AIRFLOW_FERNET_KEY }}
       TF_VAR_api_secret: ${{ secrets.AIRFLOW_API_SECRET }}
       TF_VAR_airflow_admin_password: ${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+      TF_VAR_dags_bucket_name: ${{ vars.BUCKET_NAME }}-${{ secrets.ENVIRONMENT }}
     
     steps:
       - name: Checkout code

@@ -44,5 +44,8 @@ module "orchestrator" {
   scheduler_security_group_id = module.networking.scheduler_security_group_id
   api_security_group_id       = module.networking.api_security_group_id
 
+  dags_bucket_name = var.dags_bucket_name
+  dags_prefix      = var.dags_prefix
+
   depends_on = [module.networking]
 }

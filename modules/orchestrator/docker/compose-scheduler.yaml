@@ -14,7 +14,6 @@ x-airflow: &airflow
     AIRFLOW__DAG_PROCESSOR__PARSING_PROCESSES: "1"
 
   volumes:
-    - ./dags:/opt/airflow/dags:ro
     - ./logs:/opt/airflow/logs
 
 services:

@@ -50,6 +50,8 @@ AIRFLOW__API_AUTH__JWT_SECRET=${jwt_secret}
 AIRFLOW__API__SECRET_KEY=${api_secret}
 AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${database_url}
 AWS_DEFAULT_REGION=${region}
+AIRFLOW_CONN_AWS_DEFAULT='{"conn_type":"aws","extra":{"region_name":"${region}"}}'
+AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[{"name":"s3-dags","classpath":"airflow.providers.amazon.aws.bundles.s3.S3DagBundle","kwargs":{"aws_conn_id":"aws_default","bucket_name":"${dags_bucket_name}","prefix":"${dags_prefix}","refresh_interval":60}}]'
 EOF
 
 # 5. Consultar la IP privada de esta instancia mediante IMDSv2.

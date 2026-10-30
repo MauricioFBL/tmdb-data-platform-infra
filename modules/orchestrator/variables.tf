@@ -56,3 +56,13 @@ variable "aws_region" {
 variable "environment" {
   type = string
 }
+
+variable "dags_bucket_name" {
+  description = "Bucket where DAGs are published."
+  type        = string
+}
+
+variable "dags_prefix" {
+  description = "The prefix for DAGs used inside the DAGs bucket."
+  type        = string
+}
