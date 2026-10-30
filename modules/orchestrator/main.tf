@@ -73,7 +73,7 @@ resource "aws_instance" "airflow-scheduler-db-dp" {
   }
 
   ami                         = "ami-0d27e0fb3bac4d724"
-  instance_type               = var.instance_size
+  instance_type               = "t3.small"
   key_name                    = aws_key_pair.airflow-key-pair.key_name
   subnet_id                   = var.subnet_id
   associate_public_ip_address = true
